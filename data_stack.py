@@ -92,7 +92,10 @@ class data:
         self.calculate_optical_density()
         self.fill_h5_struct_normalization()
         
-        
+#----------------------------------------------------------------------        
+    def read_sdf(self, filename):
+        file_sdf.read(self, filename)
+                
 #----------------------------------------------------------------------   
     def read_sdf_i0(self, filename):
         file_sdf.read_sdf_i0(self,filename)
