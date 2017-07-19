@@ -9,6 +9,7 @@ Created on Wed Jun  7 14:10:04 2017
 
 
 import os
+import math
 
 import numpy as np
 
@@ -18,6 +19,11 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.animation as animation
+
+from skimage import data
+from skimage.feature import register_translation
+from skimage.feature.register_translation import _upsampled_dft
+from scipy.ndimage import fourier_shift
 
 import data_struct
 import data_stack
@@ -35,7 +41,33 @@ filepath = os.path.join("C:\\Dropbox\\Ryan\\PythonStuff\\STXMCodes\\TestData\\53
 plugin = file_plugins.identify(filepath) # dont quite know what this is for ...
 stack = stk
 file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)
+#------------------------------------------------------------------------------
+#def align_stack(stack):
+stackcontainer = stack.absdata
 
+dims = np.shape(stackcontainer)
+
+xresloution = np.mean(np.diff(stack.x_dist))
+yresolution = np.mean(np.diff(stack.x_dist))
+center = np.ceil(stack.n_ev/4*3)
+
+spectr = np.zeros(dims)
+
+shifts = np.zeros((dims[2], 2))
+
+for k in range(dims[2]):   
+    shifts[k,:], err, phasediff = register_translation(stackcontainer[:,:,int(center)],
+          stackcontainer[:,:,k], 50)
+
+def ft_matrix_shift(A,dy,dx):
+    # shifts matrix elements (not-integer shifts dx,dy are possible)
+    # follows from TR Henn's original code...
+    Ny, Nx = np.shape(A)
+    rx = np.floor(Nx/2)
+    fx = ((range(Nx)-rx)/(Nx/2))
+    ry = np.floor(Ny/2)+1
+    fy = ((range(Ny)-ry)/(Ny/2))
+    px = np.fft.ifftshift(math.exp())
 #----------------------------------------------------------------------        
 def show_image(iev, stk):
     
@@ -75,7 +107,7 @@ def deglitch_stack(stack, iev):
         if iev < 0:
             iev = 0
 #---------------------------------------------------------------------------
-
+# http://scikit-image.org/docs/dev/auto_examples/transform/plot_register_translation.html#sphx-glr-auto-examples-transform-plot-register-translation-py
 
 
 show_image(20, stk)
