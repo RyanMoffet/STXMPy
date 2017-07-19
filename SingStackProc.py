@@ -27,14 +27,36 @@ import file_plugins
 
 PlotH = 4.0
 PlotW = PlotH*1.61803
+
+datastruct = data_struct.h5() # initialize data structure
+stk = data_stack.data(datastruct) # define stack variable
+FileInternalSelection = [(0,0)] # i think this is for selecting ROIs
+filepath = os.path.join("C:\\Dropbox\\Ryan\\PythonStuff\\STXMCodes\\TestData\\532_110204013","532_110204013.hdr")
+plugin = file_plugins.identify(filepath) # dont quite know what this is for ...
+stack = stk
+file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)
+
 #----------------------------------------------------------------------        
 def show_image(iev, stk):
     
     imdat = stk.absdata[:,:,int(iev)].copy() 
-    #plt.imshow(imdat, cmap=matplotlib.cm.get_cmap("gray"), animated=True)
-    
-    return imdat
+    plt.imshow(imdat, cmap=matplotlib.cm.get_cmap("gray"), animated=True)
 
+#---------------------------------------------------------------------------
+def update_frame(iev, stk):
+        imdat = stk.absdata[:,:,int(iev)].copy()
+        return imdat
+    
+#---------------------------------------------------------------------------
+def stack_movie(stk):
+    fig2 = plt.figure()
+    ims = []
+    for i in range(stk.n_ev):
+        im = plt.imshow(update_frame(i, stk), animated=True)
+        ims.append([im])
+    ani = animation.ArtistAnimation(fig2, ims, interval=50, blit=True, 
+                                  repeat_delay=1000)
+    return ani
 #------------------------------------------------------------------------- 
    
 def deglitch_stack(stack, iev):
@@ -52,31 +74,21 @@ def deglitch_stack(stack, iev):
         iev = iev-1
         if iev < 0:
             iev = 0
+#---------------------------------------------------------------------------
 
-    
-datastruct = data_struct.h5() # initialize data structure
-stk = data_stack.data(datastruct) # define stack variable
-FileInternalSelection = [(0,0)] # i think this is for selecting ROIs
-filepath = os.path.join("C:\\Dropbox\\Ryan\\PythonStuff\\STXMCodes\\TestData\\532_110204013","532_110204013.hdr")
-plugin = file_plugins.identify(filepath) # dont quite know what this is for ...
-stack = stk
-file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)
+
 
 show_image(20, stk)
 deglitch_stack(stk,3)
 
+    
+    
+ani = stack_movie(stk)
+plt.show()
 #------------------------------------------------------------------------------
 # work on animating images...
 
-fig2 = plt.figure()
-# slices = np.array(range(stk.n_ev))
-ims = []
-for i in range(stk.n_ev):
-    im = plt.imshow(show_image(i, stk), animated=True)
-    ims.append([im])
-ani=animation.ArtistAnimation(fig2, ims, interval=50, blit=True, 
-                              repeat_delay=1000)
-plt.show()
+
 
 
 # file_dataexch_hdf5.write_h5(filepath, self.data_struct) 
