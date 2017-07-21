@@ -104,7 +104,8 @@ def deglitch_stack(stack, iev):
         if iev < 0:
             iev = 0
             
-            
+ani = stack_movie(stk)  
+plt.show()          
 # def align_stack(stack):
 stackcontainer = stack.absdata
 
@@ -115,7 +116,7 @@ xmax = dims[1]
 emax = dims[2]
 
 xresloution = np.mean(np.diff(stack.x_dist))
-yresolution = np.mean(np.diff(stack.x_dist))
+yresolution = np.mean(np.diff(stack.y_dist))
 center = np.ceil(stack.n_ev/4*3)
 
 spectr = np.zeros(dims)
@@ -135,6 +136,9 @@ shiftxmin = np.ceil(np.abs(np.min(shifts[:,1])))
 shiftmatrix = np.zeros((int(ymax-shiftymin-shiftymax),int(xmax-shiftxmax-shiftxmin)
 ,int(emax)))
 
+shiftmatrix[:,:,:] = spectr[int(shiftymax):int(ymax-shiftymin),int(shiftxmax):int(xmax-shiftxmin),:]
+
+stk.absdata=shiftmatrix
 #---------------------------------------------------------------------------
 # http://scikit-image.org/docs/dev/auto_examples/transform/plot_register_translation.html#sphx-glr-auto-examples-transform-plot-register-translation-py
 
