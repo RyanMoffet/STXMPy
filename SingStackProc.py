@@ -25,6 +25,7 @@ from skimage import data
 from skimage.feature import register_translation
 from skimage.feature.register_translation import _upsampled_dft
 from scipy.ndimage import fourier_shift
+from scipy.ndimage.filters import median_filter
 
 import data_struct
 import data_stack
@@ -155,8 +156,8 @@ yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
 #particle masking & thresholding with constant threshold condition
 
 #if method=='C':
-imagebuffer = np.mean(stack,3)
-
+imagebuffer = np.mean(stack,2)
+imagebuffer = median_filter(imagebuffer)
 
 #---------------------------------------------------------------------------
 # http://scikit-image.org/docs/dev/auto_examples/transform/plot_register_translation.html#sphx-glr-auto-examples-transform-plot-register-translation-py
