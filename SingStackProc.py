@@ -23,7 +23,9 @@ import matplotlib.animation as animation
 
 from skimage import data
 from skimage.feature import register_translation
+from skimage import exposure
 from skimage.feature.register_translation import _upsampled_dft
+from skimage.filters import threshold_otsu
 from scipy.ndimage import fourier_shift
 from scipy.ndimage.filters import median_filter
 
@@ -42,7 +44,15 @@ FileInternalSelection = [(0,0)] # i think this is for selecting ROIs
 filepath = os.path.join("C:\\Dropbox\\Ryan\\PythonStuff\\STXMCodes\\TestData\\532_110204013","532_110204013.hdr")
 plugin = file_plugins.identify(filepath) # dont quite know what this is for ...
 stack = stk
+#<<<<<<< HEAD
 file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)       
+
+#=======
+file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)
+
+ani = stack_movie(stk)  
+plt.show()          
+
 
 #------------------------------------------------------------------------------
 def align_stack(stk):
@@ -139,6 +149,7 @@ def deglitch_stack(stack, iev):
         iev = iev-1
         if iev < 0:
             iev = 0
+
             
 def mat2_gray(inmat):
     
@@ -160,19 +171,51 @@ yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
 
 #particle masking & thresholding with constant threshold condition
 
-#if method=='C':
-imagebuffer = np.mean(stack,2)
-imagebuffer = median_filter(imagebuffer,(3,3))
-GrayImage = mat2_gray(imagebuffer)
-Mask = np.zeros(np.shape(imagebuffer))
-Mask[GrayImage>=0.90] = 1
+if method=='C':
+    imagebuffer = np.mean(stack,2)
+    imagebuffer = median_filter(imagebuffer,(3,3))
+    GrayImage = mat2_gray(imagebuffer)
+    Mask = np.zeros(np.shape(imagebuffer))
+    Mask[GrayImage>=0.90] = 1
+    
+    plt.figure()
+    plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
+    
+    plt.figure()
+    plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
 
-# 
-plt.figure()
-plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
 
-plt.figure()
-plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
+elif method=='O':
+    imagebuffer = np.mean(stack,2)
+    GrayImage = mat2_gray(imagebuffer)  
+      
+    GrayImage = exposure.adjust_gamma(GrayImage, 15)
+    
+    Thresh = filters.threshold_otsu(GrayImage)
+    Mask = np.zeros(np.shape(imagebuffer))
+    Mask[GrayImage>=Thresh] = 1
+
+
+    plt.figure()
+    plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
+    
+    plt.figure()
+    plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
+
+
+#=======
+#def od_stack(stk,method)    
+# create temporary variables    
+
+method='C'
+    
+stack = stk.absdata
+eVlength = stk.n_ev
+
+xAxisLabel = [0,np.max(stk.x_dist)-np.min(stk.x_dist)]
+yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
+
+
 
 #---------------------------------------------------------------------------
 # http://scikit-image.org/docs/dev/auto_examples/transform/plot_register_translation.html#sphx-glr-auto-examples-transform-plot-register-translation-py
