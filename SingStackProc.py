@@ -25,6 +25,7 @@ from skimage import data
 from skimage.feature import register_translation
 from skimage.feature.register_translation import _upsampled_dft
 from scipy.ndimage import fourier_shift
+from scipy.ndimage.filters import median_filter
 
 import data_struct
 import data_stack
@@ -41,9 +42,44 @@ FileInternalSelection = [(0,0)] # i think this is for selecting ROIs
 filepath = os.path.join("C:\\Dropbox\\Ryan\\PythonStuff\\STXMCodes\\TestData\\532_110204013","532_110204013.hdr")
 plugin = file_plugins.identify(filepath) # dont quite know what this is for ...
 stack = stk
-file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)
-#------------------------------------------------------------------------------
+file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)       
 
+#------------------------------------------------------------------------------
+def align_stack(stk):
+    stackcontainer = stk.absdata
+    
+    dims = np.shape(stackcontainer)
+    
+    ymax = dims[0]
+    xmax = dims[1]
+    emax = dims[2]
+    
+    xresloution = np.mean(np.diff(stk.x_dist))
+    yresolution = np.mean(np.diff(stk.y_dist))
+    center = np.ceil(stk.n_ev/4*3)
+    
+    spectr = np.zeros(dims)
+    
+    shifts = np.zeros((dims[2], 2))
+    
+    for k in range(dims[2]):   
+        shifts[k,:], err, phasediff = register_translation(stackcontainer[:,:,int(center)],
+              stackcontainer[:,:,k], 50)
+        spectr[:,:,k] = ft_matrix_shift(stackcontainer[:,:,k],-shifts[k,0],-shifts[k,1])            
+    
+    shiftymax = np.ceil(np.max(shifts[:,0]))
+    shiftxmax = np.ceil(np.max(shifts[:,1]))
+    shiftymin = np.ceil(np.abs(np.min(shifts[:,0])))
+    shiftxmin = np.ceil(np.abs(np.min(shifts[:,1])))
+    
+    shiftmatrix = np.zeros((int(ymax-shiftymin-shiftymax),int(xmax-shiftxmax-shiftxmin)
+    ,int(emax)))
+    
+    shiftmatrix[:,:,:] = spectr[int(shiftymax):int(ymax-shiftymin),int(shiftxmax):int(xmax-shiftxmin),:]
+    
+    stk.absdata=shiftmatrix
+    
+    return stk
     
 def ft_matrix_shift(A,dy,dx):
     # shifts matrix elements (not-integer shifts dx,dy are possible)
@@ -104,55 +140,56 @@ def deglitch_stack(stack, iev):
         if iev < 0:
             iev = 0
             
-ani = stack_movie(stk)  
-plt.show()          
-# def align_stack(stack):
-stackcontainer = stack.absdata
+def mat2_gray(inmat):
+    
+    limits = [np.min(inmat), np.max(inmat)]
+    delta = limits[1] - limits[0]
+    outmat = (inmat - limits[0])/delta
+    return outmat
+    
+#def od_stack(stk,method)    
+# create temporary variables    
 
-dims = np.shape(stackcontainer)
+method='C'
+    
+stack = stk.absdata
+eVlength = stk.n_ev
 
-ymax = dims[0]
-xmax = dims[1]
-emax = dims[2]
+xAxisLabel = [0,np.max(stk.x_dist)-np.min(stk.x_dist)]
+yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
 
-xresloution = np.mean(np.diff(stack.x_dist))
-yresolution = np.mean(np.diff(stack.y_dist))
-center = np.ceil(stack.n_ev/4*3)
+#particle masking & thresholding with constant threshold condition
 
-spectr = np.zeros(dims)
+#if method=='C':
+imagebuffer = np.mean(stack,2)
+imagebuffer = median_filter(imagebuffer,(3,3))
+GrayImage = mat2_gray(imagebuffer)
+Mask = np.zeros(np.shape(imagebuffer))
+Mask[GrayImage>=0.90] = 1
 
-shifts = np.zeros((dims[2], 2))
+# 
+plt.figure()
+plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
 
-for k in range(dims[2]):   
-    shifts[k,:], err, phasediff = register_translation(stackcontainer[:,:,int(center)],
-          stackcontainer[:,:,k], 50)
-    spectr[:,:,k] = ft_matrix_shift(stackcontainer[:,:,k],-shifts[k,0],-shifts[k,1])            
+plt.figure()
+plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
 
-shiftymax = np.ceil(np.max(shifts[:,0]))
-shiftxmax = np.ceil(np.max(shifts[:,1]))
-shiftymin = np.ceil(np.abs(np.min(shifts[:,0])))
-shiftxmin = np.ceil(np.abs(np.min(shifts[:,1])))
-
-shiftmatrix = np.zeros((int(ymax-shiftymin-shiftymax),int(xmax-shiftxmax-shiftxmin)
-,int(emax)))
-
-shiftmatrix[:,:,:] = spectr[int(shiftymax):int(ymax-shiftymin),int(shiftxmax):int(xmax-shiftxmin),:]
-
-stk.absdata=shiftmatrix
 #---------------------------------------------------------------------------
 # http://scikit-image.org/docs/dev/auto_examples/transform/plot_register_translation.html#sphx-glr-auto-examples-transform-plot-register-translation-py
+ani = stack_movie(stk)  
+plt.show()   
 
+stk=align_stack(stk)
 
-
-
+ani = stack_movie(stk)  
+plt.show()    
 
 show_image(20, stk)
 deglitch_stack(stk,3)
+    
+ani2 = stack_movie(stk)  
+plt.show()   
 
-    
-    
-ani = stack_movie(stk)
-plt.show()
 
 
 #------------------------------------------------------------------------------
