@@ -160,8 +160,7 @@ def mat2_gray(inmat):
     
 #def od_stack(stk,method)    
 # create temporary variables    
-
-method='C'
+stk=align_stack(stk)
     
 stack = stk.absdata
 eVlength = stk.n_ev
@@ -170,7 +169,7 @@ xAxisLabel = [0,np.max(stk.x_dist)-np.min(stk.x_dist)]
 yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
 
 #particle masking & thresholding with constant threshold condition
-
+method='O'
 if method=='C':
     imagebuffer = np.mean(stack,2)
     imagebuffer = median_filter(imagebuffer,(3,3))
@@ -202,7 +201,16 @@ elif method=='O':
     plt.figure()
     plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
 
-
+Izero_Otsu = np.zeros((2, stk.n_ev))
+Izero_Otsu[0,:] = stk.ev
+for i in range(stk.n_ev):
+    tempmat = stk.absdata[:,:,i]
+    Izero_Otsu[1,i] = np.mean(tempmat[Mask==1])
+# plt.plot(Izero_Otsu[0,:],Izero_Otsu[1,:],'-')
+for i in range(stk.n_ev):
+    stk.absdata[:,:,i] = -np.log(stk.absdata[:,:,i]/Izero_Otsu[1,i])
+    
+    
 #=======
 #def od_stack(stk,method)    
 # create temporary variables    
@@ -222,7 +230,7 @@ yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
 ani = stack_movie(stk)  
 plt.show()   
 
-stk=align_stack(stk)
+
 
 ani = stack_movie(stk)  
 plt.show()    
