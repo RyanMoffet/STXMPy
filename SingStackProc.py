@@ -35,6 +35,7 @@ import analyze
 import file_plugins
 
 
+
 PlotH = 4.0
 PlotW = PlotH*1.61803
 
@@ -44,14 +45,10 @@ FileInternalSelection = [(0,0)] # i think this is for selecting ROIs
 filepath = os.path.join("C:\\Dropbox\\Ryan\\PythonStuff\\STXMCodes\\TestData\\532_110204013","532_110204013.hdr")
 plugin = file_plugins.identify(filepath) # dont quite know what this is for ...
 stack = stk
-#<<<<<<< HEAD
+
 file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)       
 
-#=======
-file_plugins.load(filepath, stk, plugin=plugin,selection=FileInternalSelection)
 
-ani = stack_movie(stk)  
-plt.show()          
 
 
 #------------------------------------------------------------------------------
@@ -64,8 +61,6 @@ def align_stack(stk):
     xmax = dims[1]
     emax = dims[2]
     
-    xresloution = np.mean(np.diff(stk.x_dist))
-    yresolution = np.mean(np.diff(stk.y_dist))
     center = np.ceil(stk.n_ev/4*3)
     
     spectr = np.zeros(dims)
@@ -115,8 +110,9 @@ def ft_matrix_shift(A,dy,dx):
 def show_image(iev, stk):
     
     imdat = stk.absdata[:,:,int(iev)].copy() 
-    plt.imshow(imdat, cmap=matplotlib.cm.get_cmap("gray"), animated=True)
-
+    fig = plt.figure()
+    cax = plt.imshow(imdat, cmap=matplotlib.cm.get_cmap("gray"), animated=True)
+    fig.colorbar(cax,ticks=[np.min(imdat),np.max(imdat)])
 #---------------------------------------------------------------------------
 def update_frame(iev, stk):
         imdat = stk.absdata[:,:,int(iev)].copy()
@@ -157,89 +153,105 @@ def mat2_gray(inmat):
     delta = limits[1] - limits[0]
     outmat = (inmat - limits[0])/delta
     return outmat
+def od_part_stack(stk,method):
+    #particle masking & thresholding with constant threshold condition
+    # method='O' for Otsu thresholding
+    # method='C' for contstant threshold (percentage of pixels above thershold)
+    if method=='C':
+        imagebuffer = np.mean(stk,2)
+        imagebuffer = median_filter(imagebuffer,(3,3))
+        GrayImage = mat2_gray(imagebuffer)
+        Mask = np.zeros(np.shape(imagebuffer))
+        Mask[GrayImage>=0.90] = 1
+        
+        plt.figure()
+        plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
+        
+        plt.figure()
+        plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
+    
+    
+    elif method=='O':
+        imagebuffer = np.mean(stack.absdata,2)
+        GrayImage = mat2_gray(imagebuffer)  
+          
+        GrayImage = exposure.adjust_gamma(GrayImage, 15)
+        
+        Thresh = threshold_otsu(GrayImage)
+        Mask = np.zeros(np.shape(imagebuffer))
+        Mask[GrayImage>=Thresh] = 1
+    
+        plt.figure()
+        fig=plt.subplot(2,1,1)
+        cax1=plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
+        fig.colorbar(cax1,ticks=[np.min(GrayImage),np.max(GrayImage)])
+        
+        
+        plt.subplot(2,1,2)
+        plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
+    
+    Izero_Otsu = np.zeros((2, stk.n_ev))
+    Izero_Otsu[0,:] = stk.ev
+    for i in range(stk.n_ev):
+        tempmat = stk.absdata[:,:,i]
+        Izero_Otsu[1,i] = np.mean(tempmat[Mask==1])
+    plt.figure()
+    plt.plot(Izero_Otsu[0,:],Izero_Otsu[1,:],'-')
+    for i in range(stk.n_ev):
+        stk.absdata[:,:,i] = -np.log(stk.absdata[:,:,i]/Izero_Otsu[1,i])
+    stk.binmap = Mask
+    return stk
     
 #def od_stack(stk,method)    
 # create temporary variables    
 stk=align_stack(stk)
-    
-stack = stk.absdata
-eVlength = stk.n_ev
+stk=od_part_stack(stk, 'O')    
+show_image(80, stk)
+#fig = plt.figure()
+#cax = plt.imshow(stk.absdata[:,:,20], cmap=matplotlib.cm.get_cmap("gray"))
+#fig.colorbar(cax,ticks=[0,.5,1])
+
 
 xAxisLabel = [0,np.max(stk.x_dist)-np.min(stk.x_dist)]
 yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
 
-#particle masking & thresholding with constant threshold condition
-method='O'
-if method=='C':
-    imagebuffer = np.mean(stack,2)
-    imagebuffer = median_filter(imagebuffer,(3,3))
-    GrayImage = mat2_gray(imagebuffer)
-    Mask = np.zeros(np.shape(imagebuffer))
-    Mask[GrayImage>=0.90] = 1
+
+
+ani = stack_movie(stk)  
+plt.show()          
+
     
-    plt.figure()
-    plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
-    
-    plt.figure()
-    plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
-
-
-elif method=='O':
-    imagebuffer = np.mean(stack,2)
-    GrayImage = mat2_gray(imagebuffer)  
-      
-    GrayImage = exposure.adjust_gamma(GrayImage, 15)
-    
-    Thresh = filters.threshold_otsu(GrayImage)
-    Mask = np.zeros(np.shape(imagebuffer))
-    Mask[GrayImage>=Thresh] = 1
-
-
-    plt.figure()
-    plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
-    
-    plt.figure()
-    plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
-
-Izero_Otsu = np.zeros((2, stk.n_ev))
-Izero_Otsu[0,:] = stk.ev
-for i in range(stk.n_ev):
-    tempmat = stk.absdata[:,:,i]
-    Izero_Otsu[1,i] = np.mean(tempmat[Mask==1])
-# plt.plot(Izero_Otsu[0,:],Izero_Otsu[1,:],'-')
-for i in range(stk.n_ev):
-    stk.absdata[:,:,i] = -np.log(stk.absdata[:,:,i]/Izero_Otsu[1,i])
-    
-    
-#=======
-#def od_stack(stk,method)    
-# create temporary variables    
-
-method='C'
-    
-stack = stk.absdata
-eVlength = stk.n_ev
-
-xAxisLabel = [0,np.max(stk.x_dist)-np.min(stk.x_dist)]
-yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
-
+#file_plugins.file_dataexch_hdf5.write_h5(filepath, data_struct)  
+#file_dataexch_hdf5.write_results_h5
+   
+##=======
+##def od_stack(stk,method)    
+## create temporary variables    
+#
+#method='C'
+#    
+#stack = stk.absdata
+#eVlength = stk.n_ev
+#
+#xAxisLabel = [0,np.max(stk.x_dist)-np.min(stk.x_dist)]
+#yAxisLabel = [0,np.max(stk.y_dist)-np.min(stk.y_dist)]
+#
 
 
 #---------------------------------------------------------------------------
 # http://scikit-image.org/docs/dev/auto_examples/transform/plot_register_translation.html#sphx-glr-auto-examples-transform-plot-register-translation-py
-ani = stack_movie(stk)  
-plt.show()   
 
 
 
-ani = stack_movie(stk)  
-plt.show()    
 
-show_image(20, stk)
-deglitch_stack(stk,3)
-    
-ani2 = stack_movie(stk)  
-plt.show()   
+#ani = stack_movie(stk)  
+#plt.show()    
+#
+#show_image(20, stk)
+#deglitch_stack(stk,3)
+#    
+#ani2 = stack_movie(stk)  
+#plt.show()   
 
 
 
