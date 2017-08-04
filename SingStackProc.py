@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.animation as animation
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from skimage import data
 from skimage.feature import register_translation
@@ -157,6 +158,12 @@ def od_part_stack(stk,method):
     #particle masking & thresholding with constant threshold condition
     # method='O' for Otsu thresholding
     # method='C' for contstant threshold (percentage of pixels above thershold)
+    Xval=np.max(stk.x_dist)-np.min(stk.x_dist)
+    Xvec = np.linspace(0,Xval,np.size(stk.x_dist))
+    
+    Yval=np.max(stk.y_dist)-np.min(stk.y_dist)
+    Yvec = np.linspace(0,Xval,np.size(stk.x_dist))
+    
     if method=='C':
         imagebuffer = np.mean(stk,2)
         imagebuffer = median_filter(imagebuffer,(3,3))
@@ -165,43 +172,56 @@ def od_part_stack(stk,method):
         Mask[GrayImage>=0.90] = 1
         
         plt.figure()
-        plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
-        
+        plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))        
         plt.figure()
         plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
     
     
     elif method=='O':
         imagebuffer = np.mean(stack.absdata,2)
-        GrayImage = mat2_gray(imagebuffer)  
-          
-        GrayImage = exposure.adjust_gamma(GrayImage, 15)
-        
+        GrayImage = mat2_gray(imagebuffer)            
+        GrayImage = exposure.adjust_gamma(GrayImage, 15)        
         Thresh = threshold_otsu(GrayImage)
         Mask = np.zeros(np.shape(imagebuffer))
         Mask[GrayImage>=Thresh] = 1
-    
-        plt.figure()
-        fig=plt.subplot(2,1,1)
-        cax1=plt.imshow(GrayImage, cmap=matplotlib.cm.get_cmap("gray"))
-        fig.colorbar(cax1,ticks=[np.min(GrayImage),np.max(GrayImage)])
         
-        
-        plt.subplot(2,1,2)
-        plt.imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
-    
     Izero_Otsu = np.zeros((2, stk.n_ev))
     Izero_Otsu[0,:] = stk.ev
     for i in range(stk.n_ev):
         tempmat = stk.absdata[:,:,i]
         Izero_Otsu[1,i] = np.mean(tempmat[Mask==1])
-    plt.figure()
-    plt.plot(Izero_Otsu[0,:],Izero_Otsu[1,:],'-')
+
     for i in range(stk.n_ev):
         stk.absdata[:,:,i] = -np.log(stk.absdata[:,:,i]/Izero_Otsu[1,i])
     stk.binmap = Mask
-    return stk
+
+    # plotting... 
+    fig, axarr = plt.subplots(2,2)
+    fig.suptitle('od_part_stack Output', fontsize=14)   
+    axarr[0,0].set_title('Raw Intensity Stack Mean')
+    im0=axarr[0,0].imshow(imagebuffer, cmap=matplotlib.cm.get_cmap("gray"),extent=(0,Xval,0,Yval))
+    divider0 = make_axes_locatable(axarr[0,0])
+    cax0 = divider0.append_axes("right", size="20%", pad=0.05)
+    cbar1=plt.colorbar(im0, cax=cax0, ticks=[np.min(imagebuffer), np.max(imagebuffer)])
+
+    axarr[0,1].set_title('Optical Density Stack Mean')
+    ODMean = np.mean(stk.absdata,2)
+    im1=axarr[0,1].imshow(ODMean, cmap=matplotlib.cm.get_cmap("gray"))
+    divider1 = make_axes_locatable(axarr[0,1])
+    cax1 = divider1.append_axes("right", size="20%", pad=0.05)
+    cbar1=plt.colorbar(im1, cax=cax1, ticks=[np.min(ODMean), np.max(ODMean)])
     
+    axarr[1,0].set_title('I0 Region Mask')
+    im1=axarr[1,0].imshow(Mask, cmap=matplotlib.cm.get_cmap("gray"))
+    
+    axarr[1,1].set_title('I0')
+    xyplt0=axarr[1,1].plot(Izero_Otsu[0,:],Izero_Otsu[1,:],'-')
+    axarr[1,1].set_xlabel('Energy (eV)')
+    axarr[1,1].set_ylabel('Counts')
+    
+    return stk
+    # plotting...
+
 #def od_stack(stk,method)    
 # create temporary variables    
 stk=align_stack(stk)
